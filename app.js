@@ -1,10 +1,10 @@
-// --- 1. 設定（あなたの情報に書き換えてください） ---
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw8aQf96fhgjY8ua3h3zEupxxyuof05uJLoX2FdKIPvMJ_k5z5mTdR5PLcMxM5Jw4sX/exec";
-
+// --- 1. 設定（Firebase） ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
+  //const firebaseConfig = {
   apiKey: "AIzaSyB5IykzdYCrQOxwLJNG4UdobcAw8NFp9NI",
   authDomain: "goiking.firebaseapp.com",
   projectId: "goiking",
@@ -13,66 +13,86 @@ const firebaseConfig = {
   appId: "1:932749736562:web:383bd467bcd1a20955a0eb"
 };
 
-// --- 2. 起動準備 ---
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-const nameSelect = document.getElementById('name-select');
+// パーツの取得
 const loginScreen = document.getElementById('login-screen');
 const waitScreen = document.getElementById('wait-screen');
 const teacherScreen = document.getElementById('teacher-screen');
-const btnLogin = document.getElementById('btn-login');
+const btnGoogleLogin = document.getElementById('btn-google-login');
 const btnDraw = document.getElementById('btn-draw');
 
-// --- 3. 名簿読み込み ---
-async function loadMember() {
-  const response = await fetch(GAS_URL);
-  const students = await response.json();
-  nameSelect.innerHTML = '<option value="">なまえを えらんでね</option>';
-  students.forEach(s => {
-    const name = s.なまえ || s.名前;
-    if(name) {
-      const opt = document.createElement('option');
-      opt.value = name; opt.textContent = name;
-      nameSelect.appendChild(opt);
+let currentUser = null;
+
+// --- 2. ログイン処理 ---
+
+// ボタンを押した時
+btnGoogleLogin.onclick = async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (error) {
+        console.error("ログイン失敗:", error);
+        alert("ログインに失敗しました。学校のアカウントか確認してね。");
     }
-  });
-}
-
-// --- 4. ログインと画面切り替え ---
-btnLogin.onclick = () => {
-  if (!nameSelect.value) return alert("なまえを選んでね");
-  loginScreen.classList.add('hidden');
-  waitScreen.classList.remove('hidden');
 };
 
-// 隠し機能：ロゴを3回クリックすると先生画面へ（開発用）
-document.querySelector('.logo').onclick = () => {
-  loginScreen.classList.add('hidden');
-  teacherScreen.classList.remove('hidden');
-};
-
-// --- 5. Firebaseの魔法（ここが重要！） ---
-
-// A: 先生がボタンを押した時の動き
-btnDraw.onclick = () => {
-  const statusRef = ref(db, 'gameStatus');
-  set(statusRef, { 
-    state: "answering", 
-    timestamp: Date.now() 
-  });
-  alert("全員の画面を切り替えました！");
-};
-
-// B: 全員の画面が自動で変わる仕組み（見守り役）
-const statusRef = ref(db, 'gameStatus');
-onValue(statusRef, (snapshot) => {
-  const data = snapshot.val();
-  if (data && data.state === "answering") {
-    // 待機画面を隠して、何かメッセージを出す（今はアラートだけ）
-    if (!teacherScreen.classList.contains('hidden')) return; // 先生はそのまま
-    waitScreen.innerHTML = "<h2 style='color:yellow'>カードが引かれました！回答してください！</h2>";
-  }
+// ログイン状態を見守る（ページを開いた時やログインした時に自動で動く）
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // ログイン成功！
+        currentUser = user;
+        console.log("ログイン中:", user.displayName);
+        
+        // 画面を切り替える
+        loginScreen.classList.add('hidden');
+        waitScreen.classList.remove('hidden');
+        
+        // 待機画面に名前を出す
+        waitScreen.innerHTML = `<p style="color:white">${user.displayName} さん、入室しました！<br>先生がはじめるのを待っています...</p>`;
+    } else {
+        // ログインしていない
+        loginScreen.classList.remove('hidden');
+        waitScreen.classList.add('hidden');
+    }
 });
 
-loadMember();
+// 隠し機能：ロゴを3回クリックで先生画面
+document.querySelector('.logo').onclick = () => {
+    loginScreen.classList.add('hidden');
+    teacherScreen.classList.remove('hidden');
+};
+
+// --- 3. 先生の操作：カードを引く ---
+const wordList = ["コイキング", "ギャラドス", "はねる", "たきのぼり", "おうじゃのしるし"];
+
+btnDraw.onclick = () => {
+    const randomIndex = Math.floor(Math.random() * wordList.length);
+    const selectedWord = wordList[randomIndex];
+
+    const statusRef = ref(db, 'gameStatus');
+    set(statusRef, { 
+        state: "answering", 
+        word: selectedWord,
+        timestamp: Date.now() 
+    });
+};
+
+// --- 4. リアルタイム受信 ---
+const statusRef = ref(db, 'gameStatus');
+onValue(statusRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.state === "answering") {
+        if (teacherScreen.classList.contains('hidden')) {
+            waitScreen.innerHTML = `
+                <div style="background: white; color: #ff4444; padding: 20px; border-radius: 20px; border: 5px solid #ffdb00;">
+                    <h2 style="font-size: 1.2rem;">お題はこれだ！</h2>
+                    <div style="font-size: 3rem; font-weight: bold; margin: 20px 0;">${data.word}</div>
+                    <p>${currentUser ? currentUser.displayName : 'あなた'} さん、語彙を考えて！</p>
+                </div>
+            `;
+        }
+    }
+});
