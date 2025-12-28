@@ -7,6 +7,7 @@ const firebaseConfig = {
   //const firebaseConfig = {
   apiKey: "AIzaSyB5IykzdYCrQOxwLJNG4UdobcAw8NFp9NI",
   authDomain: "goiking.firebaseapp.com",
+  databaseURL: "https://goiking-default-rtdb.asia-southeast1.firebasedatabase.app/",
   projectId: "goiking",
   storageBucket: "goiking.firebasestorage.app",
   messagingSenderId: "932749736562",
