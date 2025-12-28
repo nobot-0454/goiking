@@ -4,10 +4,9 @@ import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebase
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
-  //const firebaseConfig = {
   apiKey: "AIzaSyB5IykzdYCrQOxwLJNG4UdobcAw8NFp9NI",
   authDomain: "goiking.firebaseapp.com",
-  databaseURL: "https://goiking-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  databaseURL: "https://goiking-default-rtdb.asia-southeast1.firebasedatabase.app/", // ← ここにカンマを追加しました！
   projectId: "goiking",
   storageBucket: "goiking.firebasestorage.app",
   messagingSenderId: "932749736562",
@@ -30,7 +29,6 @@ let currentUser = null;
 
 // --- 2. ログイン処理 ---
 
-// ボタンを押した時
 btnGoogleLogin.onclick = async () => {
     try {
         await signInWithPopup(auth, provider);
@@ -40,21 +38,13 @@ btnGoogleLogin.onclick = async () => {
     }
 };
 
-// ログイン状態を見守る（ページを開いた時やログインした時に自動で動く）
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // ログイン成功！
         currentUser = user;
-        console.log("ログイン中:", user.displayName);
-        
-        // 画面を切り替える
         loginScreen.classList.add('hidden');
         waitScreen.classList.remove('hidden');
-        
-        // 待機画面に名前を出す
         waitScreen.innerHTML = `<p style="color:white">${user.displayName} さん、入室しました！<br>先生がはじめるのを待っています...</p>`;
     } else {
-        // ログインしていない
         loginScreen.classList.remove('hidden');
         waitScreen.classList.add('hidden');
     }
@@ -63,7 +53,9 @@ onAuthStateChanged(auth, (user) => {
 // 隠し機能：ロゴを3回クリックで先生画面
 document.querySelector('.logo').onclick = () => {
     loginScreen.classList.add('hidden');
+    waitScreen.classList.add('hidden'); // 待機画面からも行けるように追加
     teacherScreen.classList.remove('hidden');
+    alert("先生モードになりました！"); // 確認用
 };
 
 // --- 3. 先生の操作：カードを引く ---
@@ -78,6 +70,10 @@ btnDraw.onclick = () => {
         state: "answering", 
         word: selectedWord,
         timestamp: Date.now() 
+    }).then(() => {
+        console.log("送信完了！");
+    }).catch((err) => {
+        alert("送信失敗！ルールを確認してね：" + err.message);
     });
 };
 
@@ -86,6 +82,7 @@ const statusRef = ref(db, 'gameStatus');
 onValue(statusRef, (snapshot) => {
     const data = snapshot.val();
     if (data && data.state === "answering") {
+        // 先生画面以外の時だけお題を表示
         if (teacherScreen.classList.contains('hidden')) {
             waitScreen.innerHTML = `
                 <div style="background: white; color: #ff4444; padding: 20px; border-radius: 20px; border: 5px solid #ffdb00;">
