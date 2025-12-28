@@ -1,0 +1,65 @@
+/* 全体の背景：青 */
+body {
+  background-color: #00aaff;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+/* 枠の中：コイキングの赤 */
+#app {
+  background-color: #ff4444;
+  width: 90%;
+  max-width: 400px;
+  border: 10px solid #ffffff;
+  border-radius: 40px;
+  padding: 40px 20px;
+  text-align: center;
+  box-shadow: 0 15px 0 rgba(0,0,0,0.2);
+}
+
+.logo {
+  color: #ffdb00;
+  font-size: 2.5rem;
+  text-shadow: 3px 3px 0 #000;
+  margin-bottom: 30px;
+}
+
+/* ボタン：黄色 */
+.primary-btn {
+  background-color: #ffdb00;
+  color: #333;
+  border: none;
+  padding: 15px 40px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #c2a600;
+  margin-top: 20px;
+}
+
+.primary-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 #c2a600;
+}
+
+select {
+  width: 80%;
+  padding: 15px;
+  font-size: 1.2rem;
+  border-radius: 10px;
+  border: none;
+}
+
+.hidden { display: none; }
+
+#teacher-link {
+  margin-top: 40px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
