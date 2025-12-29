@@ -17,138 +17,165 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const loginScreen = document.getElementById('login-screen');
-const waitScreen = document.getElementById('wait-screen');
-const teacherScreen = document.getElementById('teacher-screen');
+const body = document.getElementById('main-body');
 const studentArea = document.getElementById('student-area');
+const timerDisplay = document.getElementById('timer-display');
+const teacherInfo = document.getElementById('teacher-info');
 
 let currentUser = null;
-let isTeacher = false; // 先生かどうかを判定するフラグ
+let hasSubmitted = false;
+let hasVoted = false;
+let timerInterval = null;
 
-// --- 1. ログイン機能 ---
+// --- ログイン設定 ---
 document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider);
-
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, user => {
     if (user) {
         currentUser = user;
-        loginScreen.classList.add('hidden');
-        waitScreen.classList.remove('hidden');
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('wait-screen').classList.remove('hidden');
+        body.className = "bg-default";
     }
 });
 
-// --- 2. 先生モード切り替え（3回クリック） ---
-function setTeacherCommand(selector) {
-    let count = 0;
-    const el = document.querySelector(selector);
-    if(el) el.onclick = () => {
-        count++;
-        if(count >= 3) {
-            isTeacher = true; // 先生フラグを立てる
-            teacherScreen.classList.remove('hidden');
-            waitScreen.classList.add('hidden');
-            alert("せんせいモードになりました！");
-            count = 0;
-        }
-    };
-}
-setTeacherCommand('.logo');
-setTeacherCommand('.logo-trigger');
+// 先生画面切替（ロゴを3回クリック）
+let clickCount = 0;
+document.querySelector('.logo-trigger').onclick = () => {
+    clickCount++;
+    if(clickCount >= 3) {
+        document.getElementById('teacher-screen').classList.remove('hidden');
+        document.getElementById('wait-screen').classList.add('hidden');
+    }
+};
 
-// --- 3. 先生の操作：お題を出す ---
+// --- 先生の操作：お題（例）を出す ---
 const wordList = [
     { name: "コイキング", cat: "ポケモン" }, { name: "ピカチュウ", cat: "ポケモン" },
-    { name: "たきのぼり", cat: "わざ" }, { name: "モンスターボール", cat: "どうぐ" },
-    { name: "ギャラドス", cat: "ポケモン" }, { name: "きずぐすり", cat: "どうぐ" },
-    { name: "なみのり", cat: "わざ" }, { name: "カビゴン", cat: "ポケモン" }
+    { name: "たきのぼり", cat: "わざ" }, { name: "きずぐすり", cat: "どうぐ" }
 ];
 
 document.getElementById('btn-draw').onclick = () => {
     const item = wordList[Math.floor(Math.random() * wordList.length)];
-    const row = getKanaRow(item.name[0]);
+    const duration = parseInt(document.getElementById('input-ans-time').value);
     
-    // データベースを更新（ここが児童への合図になります）
+    // 文字数制限を「X文字以上」にランダム設定（例の文字数-1など）
+    const minLength = Math.max(2, item.name.length - Math.floor(Math.random() * 2));
+
     set(ref(db, 'gameStatus'), {
-        state: "playing",
+        phase: "answering",
         hint1: item.cat,
-        hint2: row,
-        hint3: item.name.length,
-        answer: item.name,
-        timestamp: Date.now() // 毎回違う値にして更新を確実に通知させる
+        hint2: getKanaRow(item.name[0]),
+        hint3: `${minLength}文字以上`,
+        example: item.name,
+        endTime: Date.now() + (duration * 1000)
     });
-    set(ref(db, 'answers'), null); 
-    document.getElementById('teacher-info').innerText = `現在のお題：${item.name}`;
+    set(ref(db, 'answers'), null);
+    hasSubmitted = false;
+    hasVoted = false;
 };
 
-// --- 4. 児童の画面更新とお題受信（順番に表示する演出） ---
+// --- 先生の操作：投票開始 ---
+document.getElementById('btn-start-vote').onclick = () => {
+    const duration = parseInt(document.getElementById('input-vote-time').value);
+    update(ref(db, 'gameStatus'), {
+        phase: "voting",
+        endTime: Date.now() + (duration * 1000)
+    });
+};
+
+// --- リアルタイム同期（カウントダウンと画面更新） ---
 onValue(ref(db, 'gameStatus'), (snap) => {
     const data = snap.val();
-    // ログイン済み かつ 先生画面ではない時
-    if (data?.state === "playing" && !isTeacher) {
-        
-        // 1. まず枠を作る
+    if (!data) return;
+
+    // タイマー処理
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        const remaining = Math.ceil((data.endTime - Date.now()) / 1000);
+        if (remaining <= 0) {
+            timerDisplay.innerText = "終了！";
+            clearInterval(timerInterval);
+        } else {
+            timerDisplay.innerText = `残り時間: ${remaining}秒`;
+        }
+    }, 1000);
+
+    // 先生画面の「例」表示
+    if (!document.getElementById('teacher-screen').classList.contains('hidden')) {
+        teacherInfo.innerText = `お題の例: ${data.example || '---'}`;
+    }
+
+    // 児童画面の描画
+    updateStudentUI(data);
+});
+
+function updateStudentUI(data) {
+    if (!document.getElementById('teacher-screen').classList.contains('hidden')) return;
+
+    if (data.phase === "answering") {
+        body.className = hasSubmitted ? "bg-bg-voted-or-sent" : "bg-answering";
         studentArea.innerHTML = `
             <div class="hint-card">
-                <div id="q1" class="big-hint hidden">①種類：<br><strong>${data.hint1}</strong></div>
-                <div id="q2" class="big-hint hidden">②何行：<br><strong>${data.hint2}</strong></div>
-                <div id="q3" class="big-hint hidden">③文字数：<br><strong>${data.hint3}文字</strong></div>
-                
-                <div id="input-area" class="hidden" style="margin-top:20px;">
-                    <input type="text" id="ans-input" placeholder="答えを入力">
-                    <button id="ans-send" class="primary-btn" style="width:100%">送信</button>
-                </div>
+                <p>①種類：<strong>${data.hint1}</strong></p>
+                <p>②最初の音：<strong>${data.hint2}</strong></p>
+                <p>③文字数：<strong>${data.hint3}</strong></p>
+                ${hasSubmitted ? '<p>送信完了！みんなの回答を待っています...</p>' : 
+                '<input type="text" id="ans-input" placeholder="言葉を入力"><button id="ans-send" class="primary-btn">送信</button>'}
             </div>
-            <div id="all-answers"></div>
         `;
-
-        // 2. 順番に表示させる（演出）
-        setTimeout(() => { document.getElementById('q1').classList.remove('hidden'); }, 0);
-        setTimeout(() => { document.getElementById('q2').classList.remove('hidden'); }, 1500);
-        setTimeout(() => { 
-            document.getElementById('q3').classList.remove('hidden'); 
-            document.getElementById('input-area').classList.remove('hidden'); // 入力欄も出す
-        }, 3000);
-
-        // 送信ボタンの処理
-        document.getElementById('ans-send').onclick = () => {
-            const text = document.getElementById('ans-input').value.trim();
-            if(text) {
-                set(ref(db, 'answers/' + currentUser.uid), {
-                    name: currentUser.displayName,
-                    text: text,
-                    votes: 0
-                });
-                document.getElementById('ans-send').disabled = true;
-                document.getElementById('ans-send').innerText = "送信済み";
-            }
-        };
+        if (document.getElementById('ans-send')) {
+            document.getElementById('ans-send').onclick = () => {
+                const val = document.getElementById('ans-input').value.trim();
+                if (val) {
+                    set(ref(db, 'answers/' + currentUser.uid), { name: currentUser.displayName, text: val, votes: 0 });
+                    hasSubmitted = true;
+                }
+            };
+        }
+    } else if (data.phase === "voting") {
+        body.className = hasVoted ? "bg-bg-voted-or-sent" : "bg-voting";
+        studentArea.innerHTML = `<h3>いいな！と思う言葉に投票しよう</h3><div id="vote-list"></div>`;
     }
-});
+}
 
-// --- 5. 回答一覧の表示（変更なし） ---
+// 回答一覧の同期（先生・児童共通）
 onValue(ref(db, 'answers'), (snap) => {
-    const area = document.getElementById('all-answers');
-    if(!area) return;
-    area.innerHTML = "";
-    if(snap.exists()){
+    const teacherList = document.getElementById('teacher-view-answers');
+    const voteList = document.getElementById('vote-list');
+    let html = "";
+    
+    if (snap.exists()) {
         snap.forEach(child => {
             const d = child.val();
-            const div = document.createElement('div');
-            div.className = "ans-item";
-            div.innerHTML = `
+            html += `<div class="ans-item">
                 <span>${d.text}</span>
-                <button class="vote-btn" onclick="window.castVote('${child.key}')">👍 ${d.votes || 0}</button>
-            `;
-            area.appendChild(div);
+                <button class="primary-btn" onclick="window.castVote('${child.key}')" style="padding:5px 10px;">👍 ${d.votes || 0}</button>
+            </div>`;
         });
+    }
+
+    if (voteList) voteList.innerHTML = html;
+    if (teacherList) {
+        let tHtml = "<h3>児童の回答一覧</h3>";
+        snap.forEach(child => {
+            const d = child.val();
+            tHtml += `<div class="ans-item"><strong>${d.name}</strong>: ${d.text} (👍 ${d.votes || 0})</div>`;
+        });
+        teacherList.innerHTML = tHtml;
     }
 });
 
+// 投票アクション
 window.castVote = (uid) => {
+    if (hasVoted) return alert("投票は1回までです");
+    update(ref(db, `answers/${uid}`), { votes: (Date.now()) }); // 簡易的なカウントアップはトランザクション推奨ですが、今回はシンプルに
+    // 実際には update(ref(db, 'answers/' + uid), { votes: current + 1 })
     const vRef = ref(db, `answers/${uid}/votes`);
-    onValue(vRef, (s) => {
-        const currentVotes = s.val() || 0;
-        update(ref(db, `answers/${uid}`), { votes: currentVotes + 1 });
+    onValue(vRef, s => {
+        update(ref(db, `answers/${uid}`), { votes: (s.val() || 0) + 1 });
     }, { onlyOnce: true });
+    hasVoted = true;
+    body.className = "bg-bg-voted-or-sent";
 };
 
 function getKanaRow(c) {
