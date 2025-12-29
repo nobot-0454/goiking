@@ -23,6 +23,7 @@ const teacherScreen = document.getElementById('teacher-screen');
 const studentArea = document.getElementById('student-area');
 
 let currentUser = null;
+let isTeacher = false; // 先生かどうかを判定するフラグ
 
 // --- 1. ログイン機能 ---
 document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider);
@@ -32,7 +33,6 @@ onAuthStateChanged(auth, (user) => {
         currentUser = user;
         loginScreen.classList.add('hidden');
         waitScreen.classList.remove('hidden');
-        setTeacherCommand('.logo-trigger');
     }
 });
 
@@ -43,6 +43,7 @@ function setTeacherCommand(selector) {
     if(el) el.onclick = () => {
         count++;
         if(count >= 3) {
+            isTeacher = true; // 先生フラグを立てる
             teacherScreen.classList.remove('hidden');
             waitScreen.classList.add('hidden');
             alert("せんせいモードになりました！");
@@ -51,6 +52,7 @@ function setTeacherCommand(selector) {
     };
 }
 setTeacherCommand('.logo');
+setTeacherCommand('.logo-trigger');
 
 // --- 3. 先生の操作：お題を出す ---
 const wordList = [
@@ -64,32 +66,49 @@ document.getElementById('btn-draw').onclick = () => {
     const item = wordList[Math.floor(Math.random() * wordList.length)];
     const row = getKanaRow(item.name[0]);
     
+    // データベースを更新（ここが児童への合図になります）
     set(ref(db, 'gameStatus'), {
         state: "playing",
         hint1: item.cat,
         hint2: row,
         hint3: item.name.length,
         answer: item.name,
-        timestamp: Date.now()
+        timestamp: Date.now() // 毎回違う値にして更新を確実に通知させる
     });
-    set(ref(db, 'answers'), null); // 回答を全員分リセット
+    set(ref(db, 'answers'), null); 
     document.getElementById('teacher-info').innerText = `現在のお題：${item.name}`;
 };
 
-// --- 4. 児童の画面更新とお題受信 ---
+// --- 4. 児童の画面更新とお題受信（順番に表示する演出） ---
 onValue(ref(db, 'gameStatus'), (snap) => {
     const data = snap.val();
-    if (data?.state === "playing" && teacherScreen.classList.contains('hidden')) {
+    // ログイン済み かつ 先生画面ではない時
+    if (data?.state === "playing" && !isTeacher) {
+        
+        // 1. まず枠を作る
         studentArea.innerHTML = `
             <div class="hint-card">
-                <p>①種類：<strong>${data.hint1}</strong></p>
-                <p>②最初の音：<strong>${data.hint2}</strong></p>
-                <p>③文字数：<strong>${data.hint3}文字</strong></p>
-                <input type="text" id="ans-input" placeholder="答えを入力">
-                <button id="ans-send" class="primary-btn" style="width:100%">送信</button>
+                <div id="q1" class="big-hint hidden">①種類：<br><strong>${data.hint1}</strong></div>
+                <div id="q2" class="big-hint hidden">②何行：<br><strong>${data.hint2}</strong></div>
+                <div id="q3" class="big-hint hidden">③文字数：<br><strong>${data.hint3}文字</strong></div>
+                
+                <div id="input-area" class="hidden" style="margin-top:20px;">
+                    <input type="text" id="ans-input" placeholder="答えを入力">
+                    <button id="ans-send" class="primary-btn" style="width:100%">送信</button>
+                </div>
             </div>
             <div id="all-answers"></div>
         `;
+
+        // 2. 順番に表示させる（演出）
+        setTimeout(() => { document.getElementById('q1').classList.remove('hidden'); }, 0);
+        setTimeout(() => { document.getElementById('q2').classList.remove('hidden'); }, 1500);
+        setTimeout(() => { 
+            document.getElementById('q3').classList.remove('hidden'); 
+            document.getElementById('input-area').classList.remove('hidden'); // 入力欄も出す
+        }, 3000);
+
+        // 送信ボタンの処理
         document.getElementById('ans-send').onclick = () => {
             const text = document.getElementById('ans-input').value.trim();
             if(text) {
@@ -105,12 +124,11 @@ onValue(ref(db, 'gameStatus'), (snap) => {
     }
 });
 
-// --- 5. 回答一覧の表示と投票機能 ---
+// --- 5. 回答一覧の表示（変更なし） ---
 onValue(ref(db, 'answers'), (snap) => {
     const area = document.getElementById('all-answers');
     if(!area) return;
-    area.innerHTML = ""; // 一旦クリア
-    
+    area.innerHTML = "";
     if(snap.exists()){
         snap.forEach(child => {
             const d = child.val();
@@ -125,7 +143,6 @@ onValue(ref(db, 'answers'), (snap) => {
     }
 });
 
-// 投票処理（グローバル関数にしてHTMLから呼べるようにする）
 window.castVote = (uid) => {
     const vRef = ref(db, `answers/${uid}/votes`);
     onValue(vRef, (s) => {
@@ -134,7 +151,6 @@ window.castVote = (uid) => {
     }, { onlyOnce: true });
 };
 
-// かな行判定
 function getKanaRow(c) {
     const code = c.charCodeAt(0);
     if (code >= 12353 && code <= 12362) return "あ行";
