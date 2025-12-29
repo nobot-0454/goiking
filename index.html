@@ -3,41 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ごいキング 2.0</title>
+    <title>ごいキング</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body id="main-body" class="bg-blue">
+<body>
     <div id="app">
         <section id="login-screen">
             <h1 class="logo">🐟 ごいキング 🐟</h1>
             <button id="btn-google-login" class="primary-btn">Googleでログイン</button>
         </section>
-
-        <section id="student-screen" class="hidden">
+        <section id="main-screen" class="hidden">
             <div id="status-bar">
-                <span id="timer-display">待機中...</span>
-                <span id="teacher-mode-trigger" class="fish-icon">🐟</span>
+                <span id="teacher-trigger" style="cursor:pointer">🐟</span>
             </div>
-            <div id="student-area">先生を待っています...</div>
-            <button id="btn-logout" class="small-link">ログアウトしてログイン画面に戻る</button>
+            <div id="game-area"></div>
         </section>
-        
         <section id="teacher-screen" class="hidden">
-            <h2 class="teacher-title">せんせい用パネル</h2>
-            <div class="teacher-settings">
-                回答：<input type="number" id="input-ans-time" value="60" style="width:40px;">秒 / 
-                投票：<input type="number" id="input-vote-time" value="60" style="width:40px;">秒<br>
-                文字数：
-                <select id="select-min-len">
-                    <option value="2文字以上">2文字以上</option>
-                    <option value="3文字以上">3文字以上</option>
-                    <option value="4文字以上">4文字以上</option>
-                    <option value="5文字以上">5文字以上</option>
-                </select><br>
-                <button id="btn-draw" class="primary-btn">お題(例)を出して開始！</button>
-                <button id="btn-start-vote" class="primary-btn" style="background:#00ff88;">投票タイム開始！</button>
-            </div>
-            <div id="teacher-example-area"></div>
+            <h2 style="color:white">せんせい用</h2>
+            <button id="btn-draw" class="primary-btn">お題(例)を出す</button>
             <div id="teacher-view-answers"></div>
         </section>
     </div>
