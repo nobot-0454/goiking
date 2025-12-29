@@ -3,24 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ごいキング</title>
+    <title>ごいキング 2.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body id="main-body" class="bg-wait">
     <div id="app">
         <section id="login-screen">
             <h1 class="logo">🐟 ごいキング 🐟</h1>
+            <p style="color:white;">〜語彙力を高め、合意形成を図るゲーム〜</p>
             <button id="btn-google-login" class="primary-btn">Googleでログイン</button>
         </section>
-        <section id="main-screen" class="hidden">
+
+        <section id="student-screen" class="hidden">
             <div id="status-bar">
-                <span id="teacher-trigger" style="cursor:pointer">🐟</span>
+                <span id="timer-display">待機中</span>
+                <span id="teacher-trigger" class="fish-btn">🐟</span>
             </div>
-            <div id="game-area"></div>
+            <div id="student-area">先生が「お題」を出すのを待っています...</div>
         </section>
+        
         <section id="teacher-screen" class="hidden">
-            <h2 style="color:white">せんせい用</h2>
-            <button id="btn-draw" class="primary-btn">お題(例)を出す</button>
+            <h2 style="color:white;">せんせい用設定パネル</h2>
+            <div class="teacher-panel">
+                <div class="set-row">
+                    回答：<input type="number" id="input-ans-time" value="60">秒 / 
+                    投票：<input type="number" id="input-vote-time" value="60">秒
+                </div>
+                <div class="set-row">
+                    制限：<select id="select-min-len">
+                        <option value="2文字以上">2文字以上</option>
+                        <option value="3文字以上">3文字以上</option>
+                        <option value="4文字以上">4文字以上</option>
+                        <option value="5文字以上">5文字以上</option>
+                    </select>
+                </div>
+                <button id="btn-draw" class="primary-btn">お題(例)を出して開始！</button>
+                <button id="btn-start-vote" class="primary-btn vote-btn">投票タイム開始！</button>
+            </div>
+            <div id="teacher-example" style="color:#ffdb00; font-weight:bold; margin-top:10px;"></div>
             <div id="teacher-view-answers"></div>
         </section>
     </div>
