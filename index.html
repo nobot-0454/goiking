@@ -8,20 +8,24 @@
 </head>
 <body>
     <div id="app">
- <section id="login-screen">
+        <section id="login-screen">
             <h1 class="logo">🐟 ごいキング 🐟</h1>
-            <p style="color: white;">学校のアカウントでログインしてね</p>
+            <p style="color: white; margin-bottom: 20px;">学校のアカウントでログインしてね</p>
             <button id="btn-google-login" class="primary-btn">Googleでログイン</button>
-            <div id="teacher-link">先生はこちら</div>
         </section>
 
         <section id="wait-screen" class="hidden">
-            <p style="color: white; font-size: 1.5rem;">先生がはじめるのを待っています...</p>
+            <h1 class="logo-trigger" style="cursor:pointer">🐟</h1>
+            <div id="student-area">
+                <p style="color: white; font-size: 1.2rem;">先生がはじめるのを待っています...</p>
+            </div>
         </section>
         
         <section id="teacher-screen" class="hidden">
             <h2 style="color: white;">せんせい用パネル</h2>
-            <button id="btn-draw" class="primary-btn">カードを引く！</button>
+            <button id="btn-draw" class="primary-btn">お題を出す！</button>
+            <div id="teacher-info" style="color: #ffdb00; margin-top: 20px; font-weight: bold;"></div>
+            <div id="teacher-view-answers" style="margin-top: 20px;"></div>
         </section>
     </div>
     <script type="module" src="app.js"></script>
