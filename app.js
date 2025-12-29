@@ -17,159 +17,126 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// 効果音の設定（フリー音源などのURLを指定）
-const sePop = new Audio('https://otologic.jp/files/free/se/phrase/q-question01.mp3'); // ヒント用
-const seFinish = new Audio('https://otologic.jp/files/free/se/phrase/q-result01.mp3'); // 入力欄用
-
+// DOM要素
+const body = document.getElementById('main-body');
 const loginScreen = document.getElementById('login-screen');
-const waitScreen = document.getElementById('wait-screen');
+const studentScreen = document.getElementById('student-screen');
 const teacherScreen = document.getElementById('teacher-screen');
 const studentArea = document.getElementById('student-area');
+const timerDisplay = document.getElementById('timer-display');
 
 let currentUser = null;
-let isTeacher = false;
+let hasSubmitted = false;
+let hasVoted = false;
+let timerInterval = null;
 
-// --- 1. ログイン機能 ---
+// --- 先生モード切り替え ---
+let clickCount = 0;
+document.getElementById('teacher-trigger').onclick = () => {
+    clickCount++;
+    if (clickCount >= 3) {
+        studentScreen.classList.add('hidden');
+        teacherScreen.classList.remove('hidden');
+        body.className = "bg-wait";
+    }
+};
+
+// --- ログイン ---
 document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider);
-
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, user => {
     if (user) {
         currentUser = user;
         loginScreen.classList.add('hidden');
-        waitScreen.classList.remove('hidden');
+        if (teacherScreen.classList.contains('hidden')) studentScreen.classList.remove('hidden');
     }
 });
 
-// --- 2. 先生モード切り替え ---
-function setTeacherCommand(selector) {
-    let count = 0;
-    const el = document.querySelector(selector);
-    if(el) el.onclick = () => {
-        count++;
-        if(count >= 3) {
-            isTeacher = true;
-            teacherScreen.classList.remove('hidden');
-            waitScreen.classList.add('hidden');
-            alert("せんせいモードになりました！");
-            count = 0;
-        }
-    };
-}
-setTeacherCommand('.logo');
-setTeacherCommand('.logo-trigger');
-
-// --- 3. 先生の操作：お題を出す ---
-const wordList = [
-    { name: "コイキング", cat: "ポケモン" }, { name: "ピカチュウ", cat: "ポケモン" },
-    { name: "たきのぼり", cat: "わざ" }, { name: "モンスターボール", cat: "どうぐ" },
-    { name: "ギャラドス", cat: "ポケモン" }, { name: "きずぐすり", cat: "どうぐ" },
-    { name: "なみのり", cat: "わざ" }, { name: "カビゴン", cat: "ポケモン" }
-];
+// --- 先生操作 ---
+const words = [{n:"コイキング",c:"ポケモン"},{n:"ピカチュウ",c:"ポケモン"},{n:"きずぐすり",c:"どうぐ"},{n:"たきのぼり",c:"わざ"}];
 
 document.getElementById('btn-draw').onclick = () => {
-    const item = wordList[Math.floor(Math.random() * wordList.length)];
-    const row = getKanaRow(item.name[0]);
-    
+    const item = words[Math.floor(Math.random() * words.length)];
+    const time = parseInt(document.getElementById('input-ans-time').value) || 60;
     set(ref(db, 'gameStatus'), {
-        state: "playing",
-        hint1: item.cat,
-        hint2: row,
-        hint3: item.name.length,
-        answer: item.name,
-        timestamp: Date.now() 
+        phase: "answering",
+        hint1: item.c, hint2: item.n[0], hint3: document.getElementById('select-min-len').value,
+        example: item.n, endTime: Date.now() + (time * 1000)
     });
-    set(ref(db, 'answers'), null); 
-    document.getElementById('teacher-info').innerText = `現在のお題：${item.name}`;
+    set(ref(db, 'answers'), null);
+    hasSubmitted = false; hasVoted = false;
 };
 
-// --- 4. 児童の画面更新（音の演出追加） ---
+document.getElementById('btn-start-vote').onclick = () => {
+    const time = parseInt(document.getElementById('input-vote-time').value) || 60;
+    update(ref(db, 'gameStatus'), { phase: "voting", endTime: Date.now() + (time * 1000) });
+};
+
+// --- 同期メイン処理 ---
 onValue(ref(db, 'gameStatus'), (snap) => {
     const data = snap.val();
-    if (data?.state === "playing" && !isTeacher) {
-        
-        studentArea.innerHTML = `
-            <div class="hint-card">
-                <div id="q1" class="big-hint hidden">①種類：<br><strong>${data.hint1}</strong></div>
-                <div id="q2" class="big-hint hidden">②何行：<br><strong>${data.hint2}</strong></div>
-                <div id="q3" class="big-hint hidden">③文字数：<br><strong>${data.hint3}文字</strong></div>
-                
-                <div id="input-area" class="hidden" style="margin-top:20px;">
-                    <input type="text" id="ans-input" placeholder="答えを入力">
-                    <button id="ans-send" class="primary-btn" style="width:100%">送信</button>
-                </div>
-            </div>
-            <div id="all-answers"></div>
-        `;
+    if (!data) return;
 
-        // 演出：音を鳴らしながら順番に表示
-        setTimeout(() => { 
-            sePop.play();
-            document.getElementById('q1').classList.remove('hidden'); 
-        }, 500);
+    // タイマー
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        const remain = Math.ceil((data.endTime - Date.now()) / 1000);
+        timerDisplay.innerText = remain > 0 ? `のこり ${remain}秒` : "終了！";
+    }, 1000);
 
-        setTimeout(() => { 
-            sePop.play();
-            document.getElementById('q2').classList.remove('hidden'); 
-        }, 2000);
-
-        setTimeout(() => { 
-            seFinish.play(); // 最後だけ違う音
-            document.getElementById('q3').classList.remove('hidden'); 
-            document.getElementById('input-area').classList.remove('hidden'); 
-        }, 3500);
-
-        document.getElementById('ans-send').onclick = () => {
-            const text = document.getElementById('ans-input').value.trim();
-            if(text) {
-                set(ref(db, 'answers/' + currentUser.uid), {
-                    name: currentUser.displayName,
-                    text: text,
-                    votes: 0
-                });
-                document.getElementById('ans-send').disabled = true;
-                document.getElementById('ans-send').innerText = "送信済み";
-            }
-        };
+    // 画面更新
+    if (!teacherScreen.classList.contains('hidden')) {
+        document.getElementById('teacher-example').innerText = `現在のお題に当てはまる言葉の例: ${data.example}`;
+    } else {
+        updateStudentUI(data);
     }
 });
 
-// --- 5. 回答一覧の表示 ---
+function updateStudentUI(data) {
+    if (data.phase === "answering") {
+        body.className = hasSubmitted ? "bg-blue" : "bg-red";
+        studentArea.innerHTML = hasSubmitted ? `<p>送信しました。みんなの回答を待っています...</p>` : `
+            <div class="hint-card">
+                <p>①種類: <b>${data.hint1}</b></p><p>②最初: <b>${data.hint2}</b></p><p>③制限: <b>${data.hint3}</b></p>
+                <input type="text" id="ans-input" placeholder="回答を入力" style="width:80%; padding:10px;">
+                <button id="ans-send" class="primary-btn" style="width:100%">送信</button>
+            </div>`;
+        if (document.getElementById('ans-send')) {
+            document.getElementById('ans-send').onclick = () => {
+                const val = document.getElementById('ans-input').value.trim();
+                if (val) {
+                    set(ref(db, 'answers/' + currentUser.uid), { name: currentUser.displayName, text: val, votes: 0 });
+                    hasSubmitted = true; updateStudentUI(data);
+                }
+            };
+        }
+    } else if (data.phase === "voting") {
+        body.className = hasVoted ? "bg-blue" : "bg-yellow";
+        studentArea.innerHTML = hasVoted ? `<h3>投票完了！結果を待とう</h3><div id="vote-list"></div>` : `<h3>いいと思う言葉に投票！</h3><div id="vote-list"></div>`;
+    }
+}
+
+// 回答リストの同期
 onValue(ref(db, 'answers'), (snap) => {
-    const area = document.getElementById('all-answers');
-    if(!area) return;
-    area.innerHTML = "";
-    if(snap.exists()){
+    const vList = document.getElementById('vote-list');
+    const tView = document.getElementById('teacher-view-answers');
+    let vHtml = ""; let tHtml = "<h3 style='color:white'>児童の回答一覧</h3>";
+
+    if (snap.exists()) {
         snap.forEach(child => {
             const d = child.val();
-            const div = document.createElement('div');
-            div.className = "ans-item";
-            div.innerHTML = `
-                <span>${d.text}</span>
-                <button class="vote-btn" onclick="window.castVote('${child.key}')">👍 ${d.votes || 0}</button>
-            `;
-            area.appendChild(div);
+            vHtml += `<div class="ans-item"><span>${d.text}</span><button onclick="window.castVote('${child.key}')" class="primary-btn" style="padding:5px 10px;">👍 ${d.votes||0}</button></div>`;
+            tHtml += `<div class="ans-item"><span><b>${d.name}</b>: ${d.text}</span><span>👍 ${d.votes||0}</span></div>`;
         });
     }
+    if (vList && !hasVoted) vList.innerHTML = vHtml;
+    if (tView) tView.innerHTML = tHtml;
 });
 
 window.castVote = (uid) => {
+    if (hasVoted) return;
     const vRef = ref(db, `answers/${uid}/votes`);
-    onValue(vRef, (s) => {
-        const currentVotes = s.val() || 0;
-        update(ref(db, `answers/${uid}`), { votes: currentVotes + 1 });
-    }, { onlyOnce: true });
+    onValue(vRef, s => { update(ref(db, `answers/${uid}`), { votes: (s.val() || 0) + 1 }); }, { onlyOnce: true });
+    hasVoted = true;
+    body.className = "bg-blue";
+    studentArea.innerHTML = "<h3>投票ありがとうございます！</h3>";
 };
-
-function getKanaRow(c) {
-    const code = c.charCodeAt(0);
-    if (code >= 12353 && code <= 12362) return "あ行";
-    if (code >= 12363 && code <= 12372) return "か行";
-    if (code >= 12373 && code <= 12382) return "さ行";
-    if (code >= 12383 && code <= 12392) return "た行";
-    if (code >= 12393 && code <= 12402) return "な行";
-    if (code >= 12403 && code <= 12417) return "は行";
-    if (code >= 12418 && code <= 12422) return "ま行";
-    if (code >= 12423 && code <= 12427) return "や行";
-    if (code >= 12428 && code <= 12432) return "ら行";
-    return "わ行";
-}
