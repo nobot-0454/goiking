@@ -16,15 +16,14 @@
         <section id="student-screen" class="hidden">
             <h1 class="logo-trigger" style="cursor:pointer">🐟</h1>
             <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; color: white;"></div>
-            <div id="student-area">先生が「お題」を出すのを待っています...</div>
+            <div id="student-area" style="color: white; font-size: 1.2rem;">先生が「お題」を出すのを待っています...</div>
         </section>
         
         <section id="teacher-screen" class="hidden">
             <h2 style="color: white;">せんせい用パネル</h2>
-            <div class="teacher-controls" style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
-                <p style="color:white; margin:0 0 10px 0;">タイマー設定（秒）</p>
-                <label>回答: <input type="number" id="input-ans-time" value="60" style="width: 50px;"></label>
-                <label> 投票: <input type="number" id="input-vote-time" value="60" style="width: 50px;"></label><br>
+            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
+                <label>回答: <input type="number" id="input-ans-time" value="60" style="width: 40px;">秒</label>
+                <label>投票: <input type="number" id="input-vote-time" value="60" style="width: 40px;">秒</label><br>
                 <button id="btn-draw" class="primary-btn" style="margin-top:10px;">お題を出す</button>
                 <button id="btn-start-vote" class="primary-btn" style="background:#ffdb00; margin-top:10px;">投票開始！</button>
             </div>
