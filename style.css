@@ -1,6 +1,25 @@
-body { background-color: #00aaff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-#app { width: 90%; max-width: 500px; text-align: center; }
-.hidden { display: none !important; }
-.primary-btn { background: #ffdb00; border: none; padding: 12px 24px; font-weight: bold; border-radius: 50px; cursor: pointer; }
-.hint-card { background: white; padding: 20px; border-radius: 20px; margin-top: 20px; text-align: left; color: #333; }
-.ans-item { background: white; color: #333; padding: 10px; border-radius: 10px; margin: 5px 0; display: flex; justify-content: space-between; }
+/* ヒントを大きく表示するスタイル */
+.big-hint {
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1.3;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #fff9e6;
+  border-radius: 15px;
+  border-left: 8px solid #ffdb00;
+  animation: slideIn 0.5s ease-out;
+}
+
+.big-hint strong {
+  color: #ff4444;
+  font-size: 3rem; /* 答えのヒント部分はさらに大きく */
+  display: block;
+  margin-top: 5px;
+}
+
+/* ふわっと横から出るアニメーション */
+@keyframes slideIn {
+  0% { transform: translateX(-20px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
