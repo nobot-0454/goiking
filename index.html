@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ごいキング 2.0</title>
+    <title>ごいキング 2.0 - 語彙力バトル</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body id="main-body" class="bg-default">
+<body id="main-body" class="bg-blue">
     <div id="app">
         <section id="login-screen">
             <h1 class="logo">🐟 ごいキング 🐟</h1>
@@ -14,20 +14,35 @@
         </section>
 
         <section id="student-screen" class="hidden">
-            <h1 class="logo-trigger" style="cursor:pointer">🐟</h1>
-            <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; color: white;"></div>
-            <div id="student-area" style="color: white; font-size: 1.2rem;">先生が「お題」を出すのを待っています...</div>
+            <div id="status-bar">
+                <span id="timer-display">待機中...</span>
+                <span id="teacher-mode-trigger" style="cursor:pointer; opacity:0.5;">🐟</span>
+            </div>
+            <div id="student-area">
+                <p>先生が「お題」を出すのを待っています...</p>
+            </div>
         </section>
         
         <section id="teacher-screen" class="hidden">
-            <h2 style="color: white;">せんせい用パネル</h2>
-            <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; margin-bottom: 15px;">
-                <label>回答: <input type="number" id="input-ans-time" value="60" style="width: 40px;">秒</label>
-                <label>投票: <input type="number" id="input-vote-time" value="60" style="width: 40px;">秒</label><br>
-                <button id="btn-draw" class="primary-btn" style="margin-top:10px;">お題を出す</button>
-                <button id="btn-start-vote" class="primary-btn" style="background:#ffdb00; margin-top:10px;">投票開始！</button>
+            <h2 class="teacher-title">せんせい用パネル</h2>
+            <div class="teacher-settings">
+                <div class="setting-row">
+                    回答：<input type="number" id="input-ans-time" value="60">秒 / 
+                    投票：<input type="number" id="input-vote-time" value="60">秒
+                </div>
+                <div class="setting-row">
+                    文字数：
+                    <select id="select-min-len">
+                        <option value="2文字以上">2文字以上</option>
+                        <option value="3文字以上">3文字以上</option>
+                        <option value="4文字以上">4文字以上</option>
+                        <option value="5文字以上">5文字以上</option>
+                    </select>
+                </div>
+                <button id="btn-draw" class="primary-btn">お題(例)を出して開始！</button>
+                <button id="btn-start-vote" class="primary-btn vote-start-btn">投票タイム開始！</button>
             </div>
-            <div id="teacher-info" style="color: #ffdb00; font-weight: bold; margin-bottom: 20px;"></div>
+            <div id="teacher-example-area"></div>
             <div id="teacher-view-answers"></div>
         </section>
     </div>
