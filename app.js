@@ -17,13 +17,17 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// 効果音の設定（フリー音源などのURLを指定）
+const sePop = new Audio('https://otologic.jp/files/free/se/phrase/q-question01.mp3'); // ヒント用
+const seFinish = new Audio('https://otologic.jp/files/free/se/phrase/q-result01.mp3'); // 入力欄用
+
 const loginScreen = document.getElementById('login-screen');
 const waitScreen = document.getElementById('wait-screen');
 const teacherScreen = document.getElementById('teacher-screen');
 const studentArea = document.getElementById('student-area');
 
 let currentUser = null;
-let isTeacher = false; // 先生かどうかを判定するフラグ
+let isTeacher = false;
 
 // --- 1. ログイン機能 ---
 document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider);
@@ -43,7 +47,7 @@ function setTeacherCommand(selector) {
     if(el) el.onclick = () => {
         count++;
         if(count >= 3) {
-            isTeacher = true; // 先生フラグをON
+            isTeacher = true;
             teacherScreen.classList.remove('hidden');
             waitScreen.classList.add('hidden');
             alert("せんせいモードになりました！");
@@ -66,7 +70,6 @@ document.getElementById('btn-draw').onclick = () => {
     const item = wordList[Math.floor(Math.random() * wordList.length)];
     const row = getKanaRow(item.name[0]);
     
-    // gameStatusを更新。timestampを入れることで変更を確実に通知させる
     set(ref(db, 'gameStatus'), {
         state: "playing",
         hint1: item.cat,
@@ -79,13 +82,11 @@ document.getElementById('btn-draw').onclick = () => {
     document.getElementById('teacher-info').innerText = `現在のお題：${item.name}`;
 };
 
-// --- 4. 児童の画面更新とお題受信（改善点：順番表示） ---
+// --- 4. 児童の画面更新（音の演出追加） ---
 onValue(ref(db, 'gameStatus'), (snap) => {
     const data = snap.val();
-    // 先生以外の画面で、かつデータがある場合
     if (data?.state === "playing" && !isTeacher) {
         
-        // レイアウトを構築（最初はヒントを非表示にする）
         studentArea.innerHTML = `
             <div class="hint-card">
                 <div id="q1" class="big-hint hidden">①種類：<br><strong>${data.hint1}</strong></div>
@@ -100,13 +101,22 @@ onValue(ref(db, 'gameStatus'), (snap) => {
             <div id="all-answers"></div>
         `;
 
-        // 1.5秒間隔で順番に表示させる演出
-        setTimeout(() => { document.getElementById('q1').classList.remove('hidden'); }, 0);
-        setTimeout(() => { document.getElementById('q2').classList.remove('hidden'); }, 1500);
+        // 演出：音を鳴らしながら順番に表示
         setTimeout(() => { 
+            sePop.play();
+            document.getElementById('q1').classList.remove('hidden'); 
+        }, 500);
+
+        setTimeout(() => { 
+            sePop.play();
+            document.getElementById('q2').classList.remove('hidden'); 
+        }, 2000);
+
+        setTimeout(() => { 
+            seFinish.play(); // 最後だけ違う音
             document.getElementById('q3').classList.remove('hidden'); 
             document.getElementById('input-area').classList.remove('hidden'); 
-        }, 3000);
+        }, 3500);
 
         document.getElementById('ans-send').onclick = () => {
             const text = document.getElementById('ans-input').value.trim();
@@ -123,7 +133,7 @@ onValue(ref(db, 'gameStatus'), (snap) => {
     }
 });
 
-// --- 5. 回答一覧の表示（変更なし） ---
+// --- 5. 回答一覧の表示 ---
 onValue(ref(db, 'answers'), (snap) => {
     const area = document.getElementById('all-answers');
     if(!area) return;
